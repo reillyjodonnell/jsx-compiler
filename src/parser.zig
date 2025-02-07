@@ -1,7 +1,7 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
 
-const NodeType = enum {
+pub const NodeType = enum {
     JSX,
     JS,
     ROOT,
@@ -15,6 +15,7 @@ pub const Node = struct {
     value: ?[]const u8,
     children: std.ArrayList(*Node),
     kind: ?lexer.TagClosingState = null,
+    closing_delimitter: ClosingDelimitter = ClosingDelimitter.NONE,
 
     pub fn init(allocator: std.mem.Allocator, node_type: NodeType) !*Node {
         const node = try allocator.create(Node);
@@ -44,12 +45,20 @@ pub const Node = struct {
     }
 };
 
+pub const ClosingDelimitter = enum { NONE, CURLY_BRACE, SQUARE_BRACKET };
+
 pub fn parser(allocator: std.mem.Allocator, token_stream: lexer.TokenList) !*Node {
     const root = try Node.init(allocator, NodeType.ROOT);
     var current_parent = root;
+    var prev_sibling: ?*Node = null;
 
     for (token_stream.tokens.items) |token| {
-        std.debug.print("processing value: {s} kind: {any} \n", .{ token.value, token.tag_kind });
+        if (prev_sibling) |sibling| {
+            if (sibling.value) |value| {
+                if (std.mem.eql(u8, value, "return") and std.mem.eql(u8, token.value, "(")) continue;
+            }
+        }
+
         if (token.tag_kind) |kind| {
             switch (kind) {
                 .opening => {
@@ -70,12 +79,14 @@ pub fn parser(allocator: std.mem.Allocator, token_stream: lexer.TokenList) !*Nod
                 },
                 else => {},
             }
-        } else {
-            const node = try Node.init(allocator, if (current_parent.node_type == NodeType.JSX) NodeType.STRING else NodeType.JS);
-            node.*.parent = current_parent;
-            node.*.value = token.value;
-            try current_parent.children.append(node);
+            continue;
         }
+
+        const node = try Node.init(allocator, if (current_parent.node_type == NodeType.JSX) NodeType.STRING else NodeType.JS);
+        node.*.parent = current_parent;
+        node.*.value = token.value;
+        try current_parent.children.append(node);
+        prev_sibling = node;
     }
 
     return root;

@@ -28,8 +28,18 @@ fn getTagType(tag: []const u8) ?TagType {
     return tags.get(tag);
 }
 
-const TagType = enum { div, h1, p, custom };
-pub const TagClosingState = enum { opening, closing, self_closing };
+const TagType = enum {
+    div,
+    h1,
+    p,
+    custom,
+    fragment,
+};
+pub const TagClosingState = enum {
+    opening,
+    closing,
+    self_closing,
+};
 
 pub const Token = struct {
     tag_type: ?TagType,

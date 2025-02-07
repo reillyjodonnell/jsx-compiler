@@ -2,6 +2,7 @@ const std = @import("std");
 const lexer = @import("lexer.zig");
 const parser = @import("parser.zig");
 const code_gen = @import("code_generator.zig");
+const preprocess = @import("preprocess.zig");
 pub fn main() !void {
     var buffer: [200]u8 = undefined;
     const text = try std.fs.cwd().readFile("./app.jsx", &buffer);
@@ -30,10 +31,13 @@ fn compile_jsx(allocator: std.mem.Allocator, code: []const u8) ![]const u8 {
     var root_ast = try parser.parser(allocator, tokens);
     defer root_ast.deinit(allocator);
 
-    const res = try code_gen.code_gen(allocator, root_ast);
+    const preprocessed_ast = try preprocess.preprocess_jsx(allocator, root_ast);
+    const res = try code_gen.code_gen(allocator, preprocessed_ast);
     // caller be sure to call free on the result
     // i.e. allocator.free(res);
     std.debug.print("\n\ncode: {s}\n\n", .{res});
+
+    root_ast.dfsPrint(1);
 
     return res;
 }
