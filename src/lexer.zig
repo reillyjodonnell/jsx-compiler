@@ -51,7 +51,6 @@ pub const Token = struct {
 
 const TokenizerState = enum {
     JS,
-    JSX,
     HTML_OPEN,
     HTML_CLOSE,
 };
@@ -95,7 +94,13 @@ pub fn lexer(allocator: std.mem.Allocator, text: []const u8) !TokenList {
                 config.column_number = 0;
             },
             ' ', '\t' => {
+                config.column_number += 1;
+
                 if (buffer.items.len > 0) {
+                    if (config.state == .JS and value == ' ') {
+                        try buffer.append(value);
+                        continue;
+                    }
                     // copy the contents of the buffer into the token
                     const token_val = try allocator.dupe(u8, buffer.items);
                     const token = Token{
@@ -109,7 +114,6 @@ pub fn lexer(allocator: std.mem.Allocator, text: []const u8) !TokenList {
                     // clear the mem of buffer
                     buffer.clearRetainingCapacity();
                 }
-                config.column_number += 1;
                 continue;
             },
             '<' => {
@@ -150,6 +154,7 @@ pub fn lexer(allocator: std.mem.Allocator, text: []const u8) !TokenList {
                     .tag_type = getTagType(token_val),
                     .tag_kind = if (config.state == TokenizerState.HTML_CLOSE) TagClosingState.closing else if (config.state == TokenizerState.HTML_OPEN) TagClosingState.opening else null,
                 };
+                // @ Reilly
                 config.state = .JS;
                 try token_list.tokens.append(token);
                 buffer.clearRetainingCapacity();

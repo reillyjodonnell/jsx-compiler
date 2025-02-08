@@ -6,7 +6,16 @@ const preprocess = @import("preprocess.zig");
 pub fn main() !void {
     var buffer: [200]u8 = undefined;
     const text = try std.fs.cwd().readFile("./app.jsx", &buffer);
-    std.debug.print("{s}", .{text});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit(); // Ensure cleanup
+    const res = try compile_jsx(allocator, text);
+    defer allocator.free(res);
+
+    var file = try std.fs.cwd().createFile("compiled.jsx", .{});
+    defer file.close();
+
+    try file.writeAll(res);
 }
 
 const testing = std.testing;
@@ -24,6 +33,8 @@ test "simple test" {
     try testing.expectEqualStrings(res, expected);
 }
 
+// caller be sure to call free on the result
+// i.e. allocator.free(res);
 fn compile_jsx(allocator: std.mem.Allocator, code: []const u8) ![]const u8 {
     var tokens = try lexer.lexer(allocator, code);
     defer tokens.deinit();
@@ -31,11 +42,10 @@ fn compile_jsx(allocator: std.mem.Allocator, code: []const u8) ![]const u8 {
     var root_ast = try parser.parser(allocator, tokens);
     defer root_ast.deinit(allocator);
 
-    const preprocessed_ast = try preprocess.preprocess_jsx(allocator, root_ast);
+    const preprocessed_ast = try preprocess.preprocess_jsx(root_ast);
     const res = try code_gen.code_gen(allocator, preprocessed_ast);
-    // caller be sure to call free on the result
-    // i.e. allocator.free(res);
-    std.debug.print("\n\ncode: {s}\n\n", .{res});
+
+    std.debug.print("\n\n🟢 compiled code: {s}\n\n", .{res});
 
     root_ast.dfsPrint(1);
 

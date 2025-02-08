@@ -2,49 +2,51 @@ const std = @import("std");
 const parser = @import("parser.zig");
 const lexer = @import("lexer.zig");
 
-pub fn preprocess_jsx(allocator: std.mem.Allocator, ast: *parser.Node) !*parser.Node {
-    const root_jsx_needs_fragment = search(ast);
-    var updated_ast = ast;
+pub fn preprocess_jsx(ast: *parser.Node) !*parser.Node {
+    const jsx_root_open = searchRootOpen(
+        ast,
+    );
+    const jsx_root_close = searchRootClose(ast);
 
-    if (root_jsx_needs_fragment) |node| {
-        // append to beginning of the parent's children array list a open fragment
-        const open_fragment = try parser.Node.init(allocator, parser.NodeType.JSX);
-        errdefer open_fragment.deinit(allocator); // Clean up if subsequent allocations fail
-        open_fragment.*.parent = node.parent;
-        open_fragment.*.value = "FRAGMENT_OPENING";
-        open_fragment.*.kind = lexer.TagClosingState.opening;
+    if (jsx_root_open != null and jsx_root_close != null) {
+        jsx_root_open.?.value = "FRAGMENT_OPENING";
+        jsx_root_close.?.value = "FRAGMENT_CLOSING";
 
-        // append to end of the parent's children array list a closing fragment
-        const close_fragment = try parser.Node.init(allocator, parser.NodeType.JSX);
-        errdefer close_fragment.deinit(allocator); // Clean up if subsequent operations fail
-        close_fragment.*.parent = node.parent;
-        close_fragment.*.value = "FRAGMENT_CLOSING";
-        close_fragment.*.kind = lexer.TagClosingState.closing;
-
-        if (node.parent) |parent| {
-            try parent.children.append(open_fragment);
-            try parent.children.append(close_fragment);
+        // flag the children as needing commas
+        for (jsx_root_open.?.children.items) |child| {
+            child.need_comma = true;
         }
-        updated_ast = open_fragment;
     }
 
-    return updated_ast;
+    return ast;
 }
 
-// Loop over the tree to find the root jsx
-fn search(node: *parser.Node) ?*parser.Node {
-    if (node.kind) |kind| {
-        if (kind == lexer.TagClosingState.opening) {
-            if (node.parent) |parent| {
-                if (parent.children.items.len > 1) {
-                    return parent;
-                }
-            }
-        }
+fn searchRootOpen(node: *parser.Node) ?*parser.Node {
+    if (node.node_type == parser.NodeType.JSX_ROOT_MARKER and
+        node.kind.? == lexer.TagClosingState.opening and node.children.items.len > 1)
+    {
+        // We found the opening marker
+        return node;
     }
 
     for (node.children.items) |child| {
-        if (search(child)) |result| {
+        if (searchRootOpen(child)) |result| {
+            return result;
+        }
+    }
+    return null;
+}
+
+fn searchRootClose(node: *parser.Node) ?*parser.Node {
+    if (node.node_type == parser.NodeType.JSX_ROOT_MARKER and
+        node.kind.? == lexer.TagClosingState.closing)
+    {
+        // We found the opening marker
+        return node;
+    }
+
+    for (node.children.items) |child| {
+        if (searchRootClose(child)) |result| {
             return result;
         }
     }
