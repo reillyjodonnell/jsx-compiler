@@ -1,4 +1,4 @@
-# JSX Fragment Compiler
+# JSX Compiler
 
 POC JSX compiler written in Zig that automatically inserts fragments when needed, eliminating the need for manual top-level fragment wrapping.
 
