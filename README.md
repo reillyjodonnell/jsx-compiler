@@ -2,7 +2,9 @@
 
 POC JSX compiler written in Zig that automatically inserts fragments when needed, eliminating the need for manual top-level fragment wrapping.
 
-// add demo url
+
+https://github.com/user-attachments/assets/68c0929f-8f7f-4c8d-9fff-de3d096c99f4
+
 
 ## Overview
 
@@ -30,7 +32,11 @@ The compiler has 4 stages:
 ## Example
 
 ```jsx
-// Input: Multiple elements without explicit fragment
+// Input: Mult
+
+https://github.com/user-attachments/assets/56e3e8e6-6cac-477a-abcf-256c65826b81
+
+iple elements without explicit fragment
 <div>Hello</div>
 <span>World</span>
 
